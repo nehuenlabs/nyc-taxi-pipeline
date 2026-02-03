@@ -385,7 +385,7 @@ make run-backfill MONTHS=2023-02
 - Re-running for a month replaces only that partition
 - No duplicates, no data corruption
 
-## ⚠️ Limitations & Future Improvements
+## ⚠️ Considerations
 
 ### Current Limitations
 
