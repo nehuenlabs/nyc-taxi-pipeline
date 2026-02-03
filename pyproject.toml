@@ -1,0 +1,196 @@
+[build-system]
+requires = ["setuptools>=61.0", "wheel"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "nyc-taxi-pipeline"
+version = "0.1.0"
+description = "Data pipeline for NYC Taxi data using PySpark and dimensional modeling"
+readme = "README.md"
+license = {text = "MIT"}
+requires-python = ">=3.10"
+authors = [
+    {name = "Marcelo", email = "marcelo@example.com"}
+]
+keywords = [
+    "data-engineering",
+    "pyspark",
+    "etl",
+    "dimensional-modeling",
+    "gcp",
+    "terraform"
+]
+classifiers = [
+    "Development Status :: 3 - Alpha",
+    "Intended Audience :: Developers",
+    "License :: OSI Approved :: MIT License",
+    "Programming Language :: Python :: 3",
+    "Programming Language :: Python :: 3.10",
+    "Programming Language :: Python :: 3.11",
+    "Programming Language :: Python :: 3.12",
+    "Topic :: Database",
+    "Topic :: Scientific/Engineering :: Information Analysis",
+]
+
+dependencies = [
+    "pyspark>=3.5.0",
+    "pandas>=2.0.0",
+    "pyarrow>=14.0.0",
+    "psycopg2-binary>=2.9.9",
+    "sqlalchemy>=2.0.0",
+    "python-dotenv>=1.0.0",
+    "pydantic>=2.0.0",
+    "pydantic-settings>=2.0.0",
+    "click>=8.1.0",
+    "rich>=13.0.0",
+    "structlog>=23.0.0",
+]
+
+[project.optional-dependencies]
+gcp = [
+    "google-cloud-storage>=2.10.0",
+    "google-cloud-bigquery>=3.11.0",
+    "google-cloud-bigquery-storage>=2.22.0",
+]
+dev = [
+    "pytest>=7.4.0",
+    "pytest-cov>=4.1.0",
+    "pytest-mock>=3.12.0",
+    "pytest-spark>=0.6.0",
+    "chispa>=0.9.4",
+    "black>=23.0.0",
+    "flake8>=6.1.0",
+    "isort>=5.12.0",
+    "mypy>=1.5.0",
+    "types-psycopg2>=2.9.21",
+    "pandas-stubs>=2.0.0",
+]
+all = [
+    "nyc-taxi-pipeline[gcp,dev]",
+]
+
+[project.scripts]
+nyc-taxi = "src.cli:main"
+
+[project.urls]
+Homepage = "https://github.com/marcelo/nyc-taxi-pipeline"
+Repository = "https://github.com/marcelo/nyc-taxi-pipeline.git"
+Documentation = "https://github.com/marcelo/nyc-taxi-pipeline#readme"
+
+# ============================================
+# Tool Configurations
+# ============================================
+
+[tool.setuptools.packages.find]
+where = ["."]
+include = ["src*"]
+
+[tool.black]
+line-length = 100
+target-version = ['py310', 'py311', 'py312']
+include = '\.pyi?$'
+extend-exclude = '''
+/(
+    \.git
+    | \.hg
+    | \.mypy_cache
+    | \.tox
+    | \.venv
+    | _build
+    | buck-out
+    | build
+    | dist
+    | data
+)/
+'''
+
+[tool.isort]
+profile = "black"
+line_length = 100
+skip_gitignore = true
+known_first_party = ["src"]
+known_third_party = ["pyspark", "pandas", "pydantic", "click", "pytest"]
+sections = ["FUTURE", "STDLIB", "THIRDPARTY", "FIRSTPARTY", "LOCALFOLDER"]
+
+[tool.mypy]
+python_version = "3.11"
+warn_return_any = true
+warn_unused_configs = true
+disallow_untyped_defs = true
+disallow_incomplete_defs = true
+check_untyped_defs = true
+ignore_missing_imports = true
+exclude = [
+    "data/",
+    "build/",
+    "dist/",
+    ".venv/",
+]
+
+[[tool.mypy.overrides]]
+module = [
+    "pyspark.*",
+    "chispa.*",
+]
+ignore_missing_imports = true
+
+[tool.pytest.ini_options]
+minversion = "7.0"
+addopts = [
+    "-ra",
+    "-q",
+    "--strict-markers",
+    "--tb=short",
+]
+testpaths = ["tests"]
+python_files = ["test_*.py", "*_test.py"]
+python_classes = ["Test*"]
+python_functions = ["test_*"]
+markers = [
+    "unit: Unit tests (fast, no external dependencies)",
+    "integration: Integration tests (may require Docker services)",
+    "slow: Slow tests (skip with -m 'not slow')",
+    "spark: Tests that require Spark session",
+]
+filterwarnings = [
+    "ignore::DeprecationWarning",
+    "ignore::PendingDeprecationWarning",
+]
+
+[tool.coverage.run]
+source = ["src"]
+branch = true
+omit = [
+    "*/tests/*",
+    "*/__init__.py",
+]
+
+[tool.coverage.report]
+exclude_lines = [
+    "pragma: no cover",
+    "def __repr__",
+    "raise AssertionError",
+    "raise NotImplementedError",
+    "if __name__ == .__main__.:",
+    "if TYPE_CHECKING:",
+]
+fail_under = 70
+show_missing = true
+
+[tool.coverage.html]
+directory = "htmlcov"
+
+[tool.flake8]
+max-line-length = 100
+extend-ignore = ["E203", "W503"]
+exclude = [
+    ".git",
+    "__pycache__",
+    "build",
+    "dist",
+    ".venv",
+    "data",
+]
+per-file-ignores = [
+    "__init__.py:F401",
+]

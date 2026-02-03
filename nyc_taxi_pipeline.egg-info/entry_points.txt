@@ -1,0 +1,2 @@
+[console_scripts]
+nyc-taxi = src.cli:main

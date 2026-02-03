@@ -1,0 +1,142 @@
+# ============================================
+# NYC Taxi Pipeline - Docker Compose
+# ============================================
+# Usage:
+#   make start       - Start all services
+#   make stop        - Stop all services
+#   make logs        - View logs
+#   make status      - Check status
+# ============================================
+
+services:
+  # ============================================
+  # SPARK MASTER
+  # ============================================
+  spark-master:
+    image: bde2020/spark-master:3.3.0-hadoop3.3
+    container_name: spark-master
+    hostname: spark-master
+    ports:
+      - "8081:8080"   # Spark Web UI
+      - "7077:7077"   # Spark Master port
+    environment:
+      - INIT_DAEMON_STEP=setup_spark
+    volumes:
+      - ../src:/opt/spark/work/src:ro
+      - ../data:/opt/spark/work/data
+    networks:
+      - pipeline-network
+
+  # ============================================
+  # SPARK WORKER
+  # ============================================
+  spark-worker:
+    image: bde2020/spark-worker:3.3.0-hadoop3.3
+    container_name: spark-worker
+    hostname: spark-worker
+    depends_on:
+      - spark-master
+    ports:
+      - "8082:8081"   # Worker Web UI
+    environment:
+      - SPARK_MASTER=spark://spark-master:7077
+      - SPARK_WORKER_MEMORY=2G
+      - SPARK_WORKER_CORES=2
+    volumes:
+      - ../src:/opt/spark/work/src:ro
+      - ../data:/opt/spark/work/data
+    networks:
+      - pipeline-network
+
+  # ============================================
+  # POSTGRESQL
+  # ============================================
+  postgres:
+    image: postgres:15-alpine
+    container_name: postgres
+    hostname: postgres
+    environment:
+      POSTGRES_USER: ${POSTGRES_USER:-pipeline}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-pipeline123}
+      POSTGRES_DB: ${POSTGRES_DB:-nyctaxi}
+    ports:
+      - "5432:5432"
+    volumes:
+      - postgres-data:/var/lib/postgresql/data
+      - ../sql/postgres:/docker-entrypoint-initdb.d:ro
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-pipeline} -d ${POSTGRES_DB:-nyctaxi}"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 10s
+    networks:
+      - pipeline-network
+
+  # ============================================
+  # ADMINER (Database UI)
+  # ============================================
+  adminer:
+    image: adminer:latest
+    container_name: adminer
+    hostname: adminer
+    ports:
+      - "8080:8080"
+    environment:
+      ADMINER_DEFAULT_SERVER: postgres
+      ADMINER_DESIGN: nette
+    depends_on:
+      postgres:
+        condition: service_healthy
+    networks:
+      - pipeline-network
+
+  # ============================================
+  # PIPELINE RUNNER
+  # ============================================
+  pipeline:
+    build:
+      context: ..
+      dockerfile: docker/Dockerfile
+    container_name: pipeline
+    hostname: pipeline
+    environment:
+      - PIPELINE_ENV=local
+      - POSTGRES_HOST=postgres
+      - POSTGRES_PORT=5432
+      - POSTGRES_DB=${POSTGRES_DB:-nyctaxi}
+      - POSTGRES_USER=${POSTGRES_USER:-pipeline}
+      - POSTGRES_PASSWORD=${POSTGRES_PASSWORD:-pipeline123}
+      - DATA_PATH=/data
+      - SPARK_MASTER=local[*]
+      - SPARK_DRIVER_MEMORY=2g
+      - SPARK_EXECUTOR_MEMORY=2g
+      - PYTHONPATH=/app
+    depends_on:
+      postgres:
+        condition: service_healthy
+    volumes:
+      - ../src:/app/src
+      - ../scripts:/app/scripts
+      - ../data:/data
+    working_dir: /app
+    networks:
+      - pipeline-network
+    profiles:
+      - jobs
+    # Use with: docker-compose run --rm pipeline python -m src.cli <command>
+
+# ============================================
+# VOLUMES
+# ============================================
+volumes:
+  postgres-data:
+    name: nyc-taxi-postgres-data
+
+# ============================================
+# NETWORKS
+# ============================================
+networks:
+  pipeline-network:
+    name: nyc-taxi-network
+    driver: bridge
